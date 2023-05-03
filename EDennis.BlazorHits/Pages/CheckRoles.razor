@@ -1,0 +1,85 @@
+﻿@page "/checkroles"
+<h3>Check Roles</h3>
+
+<AuthorizeView>
+    <Authorized>
+        <h4>@context.User.Identity.Name</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Claim Type</th>
+                    <th>Claim Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var claim in context.User.Claims)
+                {
+                    <tr>
+                        <td>@claim.Type</td>
+                        <td>@claim.Value</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Service Type</th>
+                    <th>Implementation Type</th>
+                    <th>Implementation Assembly</th>
+                    <th>LifeTime</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var descriptor in ServiceInspector.ServiceDescriptors.OrderBy(s=>s.ServiceType.Name))
+                {
+                    <tr>
+                        <td>@descriptor.ServiceType.Name</td>
+                        <td>@descriptor.ImplementationType.Name</td>
+                        <td>@descriptor.ImplementationType.Assembly.GetName().Name</td>
+                        <td>@descriptor.Lifetime</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+    </Authorized>
+    <NotAuthorized>
+        <h4>NOT AUTHENTICATED</h4>
+    </NotAuthorized>
+</AuthorizeView>
+<ul>
+    <AuthorizeView Roles="IT">
+        <Authorized>
+            <li>IT Role</li>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Roles="admin">
+        <Authorized>
+            <li>admin</li>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Roles="user">
+        <Authorized>
+            <li>user</li>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Roles="readonly">
+        <Authorized>
+            <li>readonly</li>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Roles="disabled">
+        <Authorized>
+            <li>disabled</li>
+        </Authorized>
+    </AuthorizeView>
+    <AuthorizeView Roles="undefined">
+        <Authorized>
+            <li>undefined</li>
+        </Authorized>
+    </AuthorizeView>
+</ul>
+
+@code {
+}

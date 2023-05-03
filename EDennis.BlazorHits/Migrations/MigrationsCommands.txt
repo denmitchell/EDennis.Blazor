@@ -1,0 +1,5 @@
+﻿Drop-Database -Context HitsContext
+Add-Migration Initial -Context AppUserRolesContext
+Add-Migration Initial -Context HitsContext
+Update-Database -Context AppUserRolesContext
+Update-Database -Context HitsContext

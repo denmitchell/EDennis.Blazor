@@ -1,0 +1,78 @@
+{
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:54682",
+      "sslPort": 44380
+    }
+  },
+  "profiles": {
+    "Starbuck(IT)": {
+      "commandName": "Project",
+      "commandLineArgs": "FakeUser=Starbuck",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7141;http://localhost:5247"
+    },
+    "Maria(admin)": {
+      "commandName": "Project",
+      "commandLineArgs": "FakeUser=Maria",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7141;http://localhost:5247"
+    },
+    "Darius(user)": {
+      "commandName": "Project",
+      "commandLineArgs": "FakeUser=Darius",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7141;http://localhost:5247"
+    },
+    "Huan(readonly)": {
+      "commandName": "Project",
+      "commandLineArgs": "FakeUser=Huan",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7141;http://localhost:5247"
+    },
+    "Jack(disabled)": {
+      "commandName": "Project",
+      "commandLineArgs": "FakeUser=Jack",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7141;http://localhost:5247"
+    },
+    "Normal Security": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7141;http://localhost:5247",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

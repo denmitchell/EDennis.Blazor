@@ -1,0 +1,43 @@
+﻿1. Modify appsettings for security and dbcontexts 
+   (1 hour)
+   *** DONE ***
+
+2. Update Program.cs to do all Dependency Injection for services
+   and conditionally include fake authentication based upon config
+   (use launchSettings)
+   (1 hour)
+   *** DONE ***
+
+3. Test fake authentication to make sure that it is working for 
+   different launch profiles (and it locks down WeatherForecastService)
+   (1 hour)
+
+4. Create test data for Artist, Song, AppUser, and AppRole
+   Note: we may want to add SysGuid
+   (2 hours)
+   *** DONE ***
+
+5. Add migrations support for HitsContext and AppUserDbContext
+   -- make sure that migrations are working correctly
+   (3 hours)
+   *** DONE ***
+
+6. Add self to AppUser and AppRole database and make sure that normal
+   security is working for WeatherForecastService
+   (2 hours)
+
+7. Add unit tests for all public CrudService Methods
+   (16 hours)
+
+8. Add pages from C:\Users\denmi\source\repos\OldExploration\EDennis.AspNet\EDennis.AspNet.Tests.HitsApp.WA\Client\Pages
+   and hook up CrudService implementations
+   (24 hours)
+
+9. Document all classes
+   (8 hours)
+
+10. Create high-level documentation
+   (8 hours)
+
+-------------
+66 hours

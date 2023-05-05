@@ -117,6 +117,8 @@ namespace EDennis.BlazorUtils
             BeforeDelete(existing);
 
             UpdateSysUser();
+            //NOTE: a preliminary call to save changes is made PRIOR TO THE DELETE
+            //in order to capture the SysUser associated with the delete
             await DbContext.SaveChangesAsync();
             DbContext.Remove(existing);
             await DbContext.SaveChangesAsync();

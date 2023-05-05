@@ -3,10 +3,10 @@
 
     /// <summary>
     /// The result returned from a Dynamic Linq query.  This
-    /// version of DynamicLinqResult provides a dynamic
-    /// response.  The class is used when the Select property
-    /// IS provided (and hence only a subset of properties are 
-    /// returned).
+    /// version of DynamicLinqResult provides a dynamic response.
+    /// The class is used when the Select extension method is
+    /// used to return only a subset of properties.  
+    /// See <see cref="DynamicLinqResult{TEntity}"/>
     /// </summary>
     public class DynamicLinqResult
     {
@@ -39,10 +39,11 @@
 
 
     /// <summary>
-    /// The result returned from a Dynamic Linq query.  This
-    /// generic version of DynamicLinqResult provides a typed
-    /// response.  The class is used when the Select property
-    /// is not provided (and hence all properties are returned).
+    /// The result returned from a Dynamic Linq query.  This generic
+    /// version of DynamicLinqResult provides a typed response.  The 
+    /// class is used when the Select extension method is not used 
+    /// (and hence all properties are returned).
+    /// See <see cref="DynamicLinqResult{TEntity}"/>
     /// </summary>
     /// <typeparam name="TEntity">The relevant model class</typeparam>
     public class DynamicLinqResult<TEntity>

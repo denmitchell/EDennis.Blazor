@@ -15,22 +15,80 @@ namespace EDennis.BlazorUtils
     {
         #region Variables
 
+        /// <summary>
+        /// Allows specifying a different SysStart (PeriodStart) column for
+        /// SQL Server temporal tables.
+        /// </summary>
         public virtual string SysStartColumn { get; } = "SysStart";
 
+        /// <summary>
+        /// The Entity Framework DbContext class for communicating with the
+        /// database.
+        /// </summary>
         public TContext DbContext { get; private set; }
+
+        /// <summary>
+        /// The name of the authenticated Claims Principal, which is 
+        /// used to update SysUser
+        /// </summary>
         public string UserName { get; private set; }
 
+        /// <summary>
+        /// A service for replacing the normal DbContext with a DbContext
+        /// that is more suitable for testing (e.g., one with an open
+        /// transaction).
+        /// </summary>
         private readonly DbContextService<TContext> _dbContextService;
+
+        /// <summary>
+        /// A cache that is used to hold the count of records across pages
+        /// for specific queries (by where/filter clause).  This is helpful
+        /// to prevent recounting records when the user is merely paging
+        /// across the same logical result set.
+        /// </summary>
         private readonly CountCache<TEntity> _countCache;
-        private static readonly Dictionary<string, PropertyInfo> _propertyDict;
-        private static readonly JsonSerializerOptions _jsonSerializerOptions
-            = new()
-            { PropertyNameCaseInsensitive = true };
+
+        /// <summary>
+        /// The table name associated with the entity.
+        /// </summary>
+        public static string TableName { get; private set; }
+
+        /// <summary>
+        /// Overrideable threshold for expiring the cached count of records.  This value
+        /// need not be large because it is mainly supporting paging across records, which
+        /// typically is done fairly quickly by users.
+        /// </summary>
+        public virtual double CountCacheExpirationInSeconds { get; private set; } = 60;
+
+        /// <summary>
+        /// Gets the table name associated with the entity
+        /// </summary>
+        /// <returns></returns>
+        public string GetTableName()
+        {
+            if (TableName == null)
+            {
+                var entityType = typeof(TEntity);
+                var modelEntityType = DbContext.Model.FindEntityType(entityType);
+                TableName = modelEntityType.GetSchemaQualifiedTableName();
+            }
+            return TableName;
+        }
 
 
         #endregion
+
         #region Constructor
 
+        /// <summary>
+        /// Constructs a new instance of <see cref="CrudService{TContext, TEntity}"/> with
+        /// various <see cref="CrudServiceDependencies{TContext, TEntity}"/> injected.
+        /// The constructor sets up a reference to the DbContext, the DbContextService
+        /// (for replacing the DbContext during testing), and the <see cref="CountCache{TEntity}"/>.
+        /// The constructor also uses the <see cref="AuthenticationStateProvider"/> to
+        /// set the UserName property from the Claims Principal name.
+        /// </summary>
+        /// <param name="deps">A bundled set of dependencies to inject</param>
         public CrudService(CrudServiceDependencies<TContext, TEntity> deps)
         {
             _dbContextService = deps.DbContextService;
@@ -43,6 +101,14 @@ namespace EDennis.BlazorUtils
         #endregion
         #region Testing Support
 
+        /// <summary>
+        /// Uses the DbContextService to replace the existing DbContext with a 
+        /// context that is more suitable for testing (e.g., one having an open
+        /// transaction that automatically rolls back)
+        /// </summary>
+        /// <param name="testDbContextType">The nature of the new DbContext</param>
+        /// <param name="output">An Xunit helper class for piping logs to the appropriate
+        /// output stream during testing</param>
         public void SetDbContext(DbContextType testDbContextType
             = DbContextType.SqlServerOpenTransaction, ITestOutputHelper output = null)
         {
@@ -54,6 +120,12 @@ namespace EDennis.BlazorUtils
         #region Write Operations
 
 
+        /// <summary>
+        /// Sets the UserName property of this service based upon the Claims Principal's 
+        /// Name claim.  This class uses <see cref="MvcAuthenticationStateProvider"/>
+        /// </summary>
+        /// <param name="authenticationStateProvider"></param>
+        /// <param name="securityOptions"></param>
         public void SetUserName(AuthenticationStateProvider authenticationStateProvider,
             SecurityOptions securityOptions)
         {
@@ -65,30 +137,47 @@ namespace EDennis.BlazorUtils
         }
 
 
+        /// <summary>
+        /// Inserts a new record into the database, based upon data in
+        /// the provided entity.
+        /// </summary>
+        /// <param name="input">The entity holding data to insert into the database</param>
+        /// <returns></returns>
         public virtual async Task<TEntity> CreateAsync(TEntity input)
         {
             UpdateSysUser();
-            BeforeCreate(input);
+            BeforeCreate(input); //optional lifecycle method
 
+            //update SysGuid when relevant
             if (input is IHasSysGuid iHasSysGuid && iHasSysGuid.SysGuid == default)
                 iHasSysGuid.SysGuid = Guid.NewGuid();
 
             await DbContext.AddAsync(input);
             await DbContext.SaveChangesAsync();
 
-            AfterCreate(input);
+            AfterCreate(input); //optional lifecycle method
 
             return input;
         }
 
 
+        /// <summary>
+        /// Updates a record in the database, based upon data
+        /// contained in the provided entity.  Note that the 
+        /// Id should match the primary key of the provided entity.
+        /// </summary>
+        /// <param name="input">The entity holding data to update</param>
+        /// <param name="id">The primary key of the entity</param>
+        /// <returns></returns>
         public virtual async Task<TEntity> UpdateAsync(
             TEntity input, params object[] id)
         {
             var existing = await FindRequiredAsync(id);
 
-            BeforeUpdate(existing);
+            BeforeUpdate(existing); //optional lifecycle method
 
+            //Entity Framework has some special methods for
+            //updating entities.  This is the recommended pattern:
             var entry = DbContext.Entry(existing);
             entry.CurrentValues.SetValues(input);
             entry.State = EntityState.Modified;
@@ -96,7 +185,7 @@ namespace EDennis.BlazorUtils
             UpdateSysUser();
             await DbContext.SaveChangesAsync();
 
-            AfterUpdate(existing);
+            AfterUpdate(existing); //optional lifecycle method
 
             return input;
 
@@ -117,8 +206,6 @@ namespace EDennis.BlazorUtils
             BeforeDelete(existing);
 
             UpdateSysUser();
-            //NOTE: a preliminary call to save changes is made PRIOR TO THE DELETE
-            //in order to capture the SysUser associated with the delete
             await DbContext.SaveChangesAsync();
             DbContext.Remove(existing);
             await DbContext.SaveChangesAsync();
@@ -146,28 +233,6 @@ namespace EDennis.BlazorUtils
                         default:
                             break;
                     }
-            }
-        }
-
-
-        /// <summary>
-        /// Static constructor, which builds the PropertyInfo 
-        /// dictionary statically
-        /// </summary>
-        static CrudService()
-        {
-            var properties = typeof(TEntity).GetProperties();
-            _propertyDict = new Dictionary<string, PropertyInfo>();
-
-            for (int i = 0; i < properties.Length; i++)
-            {
-
-                //PascalCase
-                _propertyDict.Add(properties[i].Name, properties[i]);
-
-                //camelCase
-                _propertyDict.Add(properties[i].Name[..1].ToLower()
-                    + properties[i].Name[1..], properties[i]);
             }
         }
 
@@ -213,10 +278,24 @@ namespace EDennis.BlazorUtils
         #endregion
         #region Basic Read Operations
 
+        /// <summary>
+        /// Finds a record based upon the provided primary key.  Note that
+        /// this method will return null if the record isn't found.
+        /// See also <see cref="FindRequiredAsync(object[])"/>
+        /// </summary>
+        /// <param name="id">The primary key of the target record</param>
+        /// <returns></returns>
         public async Task<TEntity> FindAsync(params object[] id)
             => await DbContext.FindAsync<TEntity>(id);
 
 
+        /// <summary>
+        /// Finds a record based upon the provided primary key.  Note that
+        /// this method will throw an exception if the record isn't found.
+        /// See also <see cref="FindAsync(object[])"/>
+        /// </summary>
+        /// <param name="id">The primary key of the target record</param>
+        /// <returns></returns>
         public async Task<TEntity> FindRequiredAsync(params object[] id)
         {
             var existing = await DbContext.FindAsync<TEntity>(id)
@@ -227,6 +306,11 @@ namespace EDennis.BlazorUtils
         #endregion
         #region DevExpress
 
+        /// <summary>
+        /// Merely returns a typed IQueryable.  DevExpress supports binding
+        /// IQueryables to their data grid.
+        /// </summary>
+        /// <returns></returns>
         public virtual IQueryable<TEntity> GetQueryable()
         => GetQuery();
 
@@ -234,15 +318,20 @@ namespace EDennis.BlazorUtils
         #region Radzen
 
         /// <summary>
-        /// Radzen, but use LoadData event (and set Count property)
+        /// Returns a page of data for the provided Radzen <see cref="Query"/> arguments. 
+        /// This version of the method returns a typed page result.  It will ignore a
+        /// provided Select argument.
+        /// See also <see cref="GetPageSelectAsync(Query)"/>
         /// </summary>
         /// <param name="qryArgs">Serializable qryArgs parameters</param>
         /// <returns></returns>
         public virtual async Task<PageResult<TEntity>> GetPageAsync(Query qryArgs = null)
         {
 
+            //build the query
             var (query, count) = BuildQuery(qryArgs);
 
+            //return the results
             var data = await query.ToListAsync();
             return new PageResult<TEntity>
             {
@@ -254,15 +343,20 @@ namespace EDennis.BlazorUtils
 
 
         /// <summary>
-        /// Radzen, but use LoadData event (and set Count property)
+        /// Returns a page of data for the provided Radzen <see cref="Query"/> arguments. 
+        /// This version of the method returns an untyped page result.  It will apply a
+        /// provided Select argument, only retrieving specified columns.
+        /// See also <see cref="GetPageAsync(Query)"/>
         /// </summary>
         /// <param name="qryArgs">Serializable qryArgs parameters</param>
         /// <returns></returns>
         public virtual async Task<PageResult> GetPageSelectAsync(Query qryArgs = null)
         {
 
+            //build the query
             var (query, count) = BuildQuery(qryArgs);
 
+            //return untyped result, even if no select is provided
             if (qryArgs == null || qryArgs.Select == null)
             {
                 var data = await query.ToDynamicListAsync();
@@ -273,6 +367,8 @@ namespace EDennis.BlazorUtils
                     CountAcrossPages = count
                 };
             }
+            //return untyped results that represent a project of the result set
+            //(a subset of available columns)
             else
             {
                 var projection =
@@ -283,7 +379,7 @@ namespace EDennis.BlazorUtils
                     Data = projection,
                     CountAcrossPages = count
                 };
-            } 
+            }
         }
 
 
@@ -392,8 +488,7 @@ namespace EDennis.BlazorUtils
         #region Helper Methods
 
         /// <summary>
-        /// Returns an AsNoTracking IQueryable, but
-        /// also applies AdjustQuery
+        /// Returns an AsNoTracking IQueryable
         /// </summary>
         /// <returns></returns>
         private IQueryable<TEntity> GetQuery(bool asNoTracking = true)
@@ -410,6 +505,12 @@ namespace EDennis.BlazorUtils
             return qry;
         }
 
+        /// <summary>
+        /// Gets any modified records (helpful for testing purposes)
+        /// </summary>
+        /// <param name="asOf">Get all modifications after this datetime.
+        /// NOTE: do not make this >=.  It will not work!</param>
+        /// <returns></returns>
         public IEnumerable<TEntity> GetModified(DateTime asOf)
         {
             var results = DbContext.Set<TEntity>()
@@ -419,6 +520,14 @@ namespace EDennis.BlazorUtils
             return results;
         }
 
+        /// <summary>
+        /// Gets the most recent create/update datetime value for a given entity.
+        /// When retrieved before an operation is performed, it can be used in 
+        /// combination with <see cref="GetModified(DateTime)"/> to obtain all
+        /// entities that were modified as a result of the operation (only when 
+        /// isolated testing is performed).
+        /// </summary>
+        /// <returns></returns>
         public DateTime GetMaxSysStart()
         {
             FormattedString sql = new($"SELECT MAX({SysStartColumn}) Value FROM {GetTableName()}");
@@ -429,25 +538,18 @@ namespace EDennis.BlazorUtils
         }
 
 
-        private static string _tableName;
-        public string GetTableName()
-        {
-            if (_tableName == null)
-            {
-                var entityType = typeof(TEntity);
-                var modelEntityType = DbContext.Model.FindEntityType(entityType);
-                _tableName = modelEntityType.GetSchemaQualifiedTableName();
-            }
-            return _tableName;
 
-        }
-
-
+        /// <summary>
+        /// Builds the Dynamic Linq IQueryable from Radzen <see cref="Query"/> arguments
+        /// </summary>
+        /// <param name="qryArgs">Radzen <see cref="Query"/> arguments</param>
+        /// <returns></returns>
         private (IQueryable<TEntity> Query, int Count) BuildQuery(Query qryArgs = null)
         {
 
             var query = GetQuery();
 
+            //handle Expand/Include -- including child records from navigation properties
             if (qryArgs != null && !string.IsNullOrWhiteSpace(qryArgs.Expand))
             {
                 var includes = qryArgs.Expand.Split(',');
@@ -455,7 +557,7 @@ namespace EDennis.BlazorUtils
                     query = query.Include(incl);
             }
 
-
+            //handle Filter/Where -- limited the result set by a condition
             if (qryArgs != null && !string.IsNullOrEmpty(qryArgs.Filter))
             {
                 if (qryArgs.FilterParameters != null)
@@ -464,24 +566,28 @@ namespace EDennis.BlazorUtils
                     query = query.Where(qryArgs.Filter);
             }
 
-            var count = _countCache.GetCount(qryArgs, query, TimeSpan.FromSeconds(60));
+            //get the count of records.  Note that the count of records
+            var count = _countCache.GetCount(qryArgs, query, TimeSpan.FromSeconds(CountCacheExpirationInSeconds));
 
+            //handle OrderBy -- server-side sorting of records
             if (qryArgs != null && !string.IsNullOrEmpty(qryArgs.OrderBy))
             {
                 query = query.OrderBy(qryArgs.OrderBy);
             }
 
-
+            //handle skipping of a certain number of records -- part of paging
             if (qryArgs != null && qryArgs.Skip != null && qryArgs.Skip > 0)
             {
                 query = query.Skip(qryArgs.Skip.Value);
             }
 
+            //handling taking of a certain number of records -- part of paging
             if (qryArgs != null && qryArgs.Top != null && qryArgs.Top > 0)
             {
                 query = query.Take(qryArgs.Top.Value);
             }
 
+            //return the query and the count across records
             return (query, count);
         }
 
@@ -489,6 +595,10 @@ namespace EDennis.BlazorUtils
 
     }
 
+    /// <summary>
+    /// Workaround class to support dynamically building SQL string for 
+    /// <see cref="CrudService{TContext, TEntity}.GetMaxSysStart"/>
+    /// </summary>
     public class FormattedString : FormattableString
     {
         private readonly string _str;

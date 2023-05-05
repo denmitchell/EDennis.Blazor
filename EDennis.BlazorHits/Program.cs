@@ -73,7 +73,6 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-//app.UseAppUserRoles<AppUserRolesContext>();
 
 app.MapControllers();
 app.MapBlazorHub();

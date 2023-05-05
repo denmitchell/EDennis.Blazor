@@ -6,7 +6,7 @@ namespace EDennis.BlazorUtils
     {
         [Key]
         public int Id { get; set; }
-        public string SysUser { get; set; } = "SYSTEM";
-        public Guid SysGuid { get; set; } = Guid.NewGuid();
+        public string SysUser { get; set; }
+        public Guid SysGuid { get; set; }
     }
 }

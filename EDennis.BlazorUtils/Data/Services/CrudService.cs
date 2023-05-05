@@ -70,6 +70,9 @@ namespace EDennis.BlazorUtils
             UpdateSysUser();
             BeforeCreate(input);
 
+            if (input is IHasSysGuid iHasSysGuid && iHasSysGuid.SysGuid == default)
+                iHasSysGuid.SysGuid = Guid.NewGuid();
+
             await DbContext.AddAsync(input);
             await DbContext.SaveChangesAsync();
 
